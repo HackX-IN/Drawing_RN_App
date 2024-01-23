@@ -44,6 +44,14 @@ interface CustomButtonProps {
   labelStyle?: TextStyle;
   iconName?: string | any;
 }
+interface TextProps {
+  x: number;
+  y: number;
+  text: string;
+  font: string | any;
+  color?: string;
+  fontSize?: number;
+}
 
 export type {
   CircleProps,
@@ -52,4 +60,5 @@ export type {
   LineProps,
   StarProps,
   CustomButtonProps,
+  TextProps,
 };

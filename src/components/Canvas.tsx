@@ -7,9 +7,12 @@ import {
   useCanvasRef,
   ImageSVG,
   Path,
+  Text,
+  matchFont,
+  SkFont,
 } from "@shopify/react-native-skia";
 import { useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { Platform, ScrollView, StyleSheet, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import CustomButton from "@/components/CustomButton";
 import { svgImage } from "@/constants/index";
@@ -20,11 +23,21 @@ import {
   LineProps,
   RectangleProps,
   StarProps,
+  TextProps,
 } from "@/types/index";
 import Toast from "react-native-toast-message";
 
 const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
-  // console.log("🚀 ~ Canvas ~ data:", data);
+  console.log("🚀 ~ Canvas ~ data:", data);
+
+  const fontFamily = Platform.select({ ios: "Helvetica", default: "serif" });
+  const fontStyle: any = {
+    fontFamily,
+    fontSize: 14,
+    fontStyle: "italic",
+    fontWeight: "bold",
+  };
+  const font = matchFont(fontStyle);
 
   const ref = useCanvasRef();
   //State to manage different shapes and their properties
@@ -32,6 +45,7 @@ const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
   const [rectangles, setRectangles] = useState<RectangleProps[]>([]);
   const [lines, setLines] = useState<LineProps[]>([]);
   const [stars, setStars] = useState<StarProps[]>([]);
+  const [texts, setTexts] = useState<TextProps[]>([]);
   const [selectedItemIndex, setSelectedItemIndex] = useState<any>(null);
   const [paths, setPaths] = useState<IPath[]>([]);
   const [selectedItemType, setSelectedItemType] = useState<string | null>(null);
@@ -43,11 +57,11 @@ const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
       setCircles(drawingData.circles || []);
       setRectangles(drawingData.rectangles || []);
       setLines(drawingData.lines || []);
-      setStars(drawingData.stars || []);
       setPaths(drawingData.paths || []);
     }
   }, [data]);
 
+  //Generate Random Numbers
   const numberOfRandomNumbers = 5;
   const minRange = 1;
   const maxRange = 100;
@@ -80,6 +94,7 @@ const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
       lines,
       stars,
       paths,
+      texts,
     };
 
     try {
@@ -87,26 +102,30 @@ const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
       const randomItemNumber = randomNumbers[randomIndex];
 
       const itemName = `drawing${randomItemNumber}`;
-      const existingData = await AsyncStorage.getItem(data.drawingData.name);
+      if (data) {
+        const existingData = await AsyncStorage.getItem(data.drawingData.name);
+        if (existingData) {
+          const parsedExistingData = JSON.parse(existingData);
+          const updatedData = {
+            circles: parsedExistingData.circles.concat(circles),
+            rectangles: parsedExistingData.rectangles.concat(rectangles),
+            lines: parsedExistingData.lines.concat(lines),
+            stars: parsedExistingData.stars.concat(stars),
+            paths: parsedExistingData.paths.concat(paths),
+            texts: parsedExistingData.texts
+              ? parsedExistingData.texts.concat(texts)
+              : parsedExistingData.texts.push(texts),
+          };
 
-      if (existingData) {
-        const parsedExistingData = JSON.parse(existingData);
-        const updatedData = {
-          circles: parsedExistingData.circles.concat(circles),
-          rectangles: parsedExistingData.rectangles.concat(rectangles),
-          lines: parsedExistingData.lines.concat(lines),
-          stars: parsedExistingData.stars.concat(stars),
-          paths: parsedExistingData.paths.concat(paths),
-        };
-
-        await AsyncStorage.setItem(
-          data.drawingData.name,
-          JSON.stringify(updatedData)
-        );
-        console.log(
-          `Canvas data updated in AsyncStorage with name: ${itemName}`
-        );
-        showToast("success", "Data saved successfully");
+          await AsyncStorage.setItem(
+            data.drawingData.name,
+            JSON.stringify(updatedData)
+          );
+          console.log(
+            `Canvas data updated in AsyncStorage with name: ${itemName}`
+          );
+          showToast("success", "Data saved successfully");
+        }
       } else {
         await AsyncStorage.setItem(itemName, JSON.stringify(canvasData));
         console.log(`Canvas data saved to AsyncStorage with name: ${itemName}`);
@@ -166,6 +185,18 @@ const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
     setStars((prevStars) => [...prevStars, newStar]);
   };
 
+  const addText = (
+    text: string,
+    x: number,
+    y: number,
+    font?: string | SkFont,
+    color?: string,
+    fontSize?: number
+  ) => {
+    const newText: TextProps = { text, x, y, font, color, fontSize };
+    setTexts((prevTexts) => [...prevTexts, newText]);
+  };
+
   // Function for canvas to add shapes
   const handlePress = (event: any, type: string): void => {
     switch (type) {
@@ -206,6 +237,15 @@ const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
           event.nativeEvent.locationY + 20,
           svgImage
         );
+      case "text":
+        addText(
+          "Hello World",
+          event.nativeEvent.locationX + 20,
+          event.nativeEvent.locationY + 20,
+          font,
+          "black",
+          20
+        );
       default:
         break;
     }
@@ -245,6 +285,7 @@ const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
     setRectangles([]);
     setLines([]);
     setStars([]);
+    setTexts([]);
     setSelectedItemIndex(null);
     setSelectedItemType("");
   };
@@ -259,6 +300,7 @@ const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
       const activeRectangle = findActiveRectangle(touchX, touchY);
       const activeLine = findActiveLine(touchX, touchY);
       const activeStar = findActiveStar(touchX, touchY);
+      const activeText = findActiveText(touchX, touchY);
 
       if (activeObject) {
         console.log(activeObject);
@@ -272,10 +314,33 @@ const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
       } else if (activeStar) {
         console.log(activeStar);
         handleObjectTouch(activeStar);
+      } else if (activeText) {
+        console.log(activeText);
+        handleObjectTouch(activeText);
       }
     }
   };
 
+  //function to find active text
+  const findActiveText = (touchX: number, touchY: number) => {
+    for (const text of texts) {
+      const { x, y, fontSize = 16, text: textContent } = text;
+
+      const textWidth = textContent.length * (fontSize / 2); // Adjust as needed
+      const textHeight = fontSize; // Adjust as needed
+
+      if (
+        touchX >= x &&
+        touchX <= x + textWidth &&
+        touchY >= y &&
+        touchY <= y + textHeight
+      ) {
+        return { type: "text", index: texts.indexOf(text) };
+      }
+    }
+
+    return null;
+  };
   // Function to find active rectangle
   const findActiveRectangle = (touchX: number, touchY: number) => {
     for (const rectangle of rectangles) {
@@ -422,6 +487,13 @@ const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
             return updatedStars;
           });
           break;
+        case "text":
+          setTexts((prevTexts) => {
+            const updatedTexts = [...prevTexts];
+            updatedTexts[selectedItemIndex].fontSize *= 1.2;
+            return updatedTexts;
+          });
+          break;
         default:
           break;
       }
@@ -462,6 +534,14 @@ const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
             updatedStars[selectedItemIndex].height *= 0.8;
             updatedStars[selectedItemIndex].width *= 0.8;
             return updatedStars;
+          });
+          break;
+        case "text":
+          setTexts((prevTexts) => {
+            const updatedTexts = [...prevTexts];
+            const fontSize = updatedTexts[selectedItemIndex].fontSize || 16;
+            updatedTexts[selectedItemIndex].fontSize = fontSize * 0.8;
+            return updatedTexts;
           });
           break;
         default:
@@ -570,7 +650,28 @@ const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
             return updatedStars;
           });
           break;
-
+        case "text":
+          setTexts((prevTexts) => {
+            const updatedTexts = [...prevTexts];
+            switch (direction) {
+              case "up":
+                updatedTexts[selectedItemIndex].y -= 10;
+                break;
+              case "down":
+                updatedTexts[selectedItemIndex].y += 10;
+                break;
+              case "left":
+                updatedTexts[selectedItemIndex].x -= 10;
+                break;
+              case "right":
+                updatedTexts[selectedItemIndex].x += 10;
+                break;
+              default:
+                break;
+            }
+            return updatedTexts;
+          });
+          break;
         default:
           break;
       }
@@ -600,6 +701,12 @@ const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
             prevStars.filter((_, index) => index !== selectedItemIndex)
           );
           break;
+        case "text":
+          setTexts((prevTexts) =>
+            prevTexts.filter((_, index) => index !== selectedItemIndex)
+          );
+          break;
+
         default:
           break;
       }
@@ -643,6 +750,9 @@ const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
                 ))}
               </>
             )}
+            {texts.map((text, index) => (
+              <Text {...text} key={index} />
+            ))}
           </SkCanvas>
         </View>
       </GestureDetector>
@@ -670,6 +780,12 @@ const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
           backgroundColor="gold"
           label="Add Star"
           iconName="star"
+        />
+        <CustomButton
+          onPress={(event) => handlePress(event, "text")}
+          backgroundColor="black"
+          label="Add text"
+          iconName="pencil"
         />
         {selectedItemIndex !== null && (
           <>
