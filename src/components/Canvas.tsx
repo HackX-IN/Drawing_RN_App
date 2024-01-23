@@ -9,7 +9,7 @@ import {
   Path,
 } from "@shopify/react-native-skia";
 import { useState } from "react";
-import { ScrollView, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import CustomButton from "@/components/CustomButton";
 import { svgImage } from "@/constants/index";
@@ -27,6 +27,7 @@ const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
   // console.log("🚀 ~ Canvas ~ data:", data);
 
   const ref = useCanvasRef();
+  //State to manage different shapes and their properties
   const [circles, setCircles] = useState<CircleProps[]>([]);
   const [rectangles, setRectangles] = useState<RectangleProps[]>([]);
   const [lines, setLines] = useState<LineProps[]>([]);
@@ -35,6 +36,7 @@ const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
   const [paths, setPaths] = useState<IPath[]>([]);
   const [selectedItemType, setSelectedItemType] = useState<string | null>(null);
 
+  // Fetching data from navigation prop
   useEffect(() => {
     if (data && data.drawingData) {
       const drawingData = data.drawingData.data;
@@ -57,10 +59,11 @@ const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
     randomNumbers.push(randomNumber);
   }
 
+  //Showing Toast
   const showToast = (type: string, text: string) => {
     Toast.show({
       type,
-      position: "bottom",
+      position: "top",
       text1: text,
       visibilityTime: 3000,
       autoHide: true,
@@ -69,6 +72,7 @@ const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
     });
   };
 
+  // Saving data to AsyncStorage
   const saveData = async () => {
     const canvasData = {
       circles,
@@ -83,7 +87,6 @@ const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
       const randomItemNumber = randomNumbers[randomIndex];
 
       const itemName = `drawing${randomItemNumber}`;
-      // const existingName = data.drawingData.name;
       const existingData = await AsyncStorage.getItem(data.drawingData.name);
 
       if (existingData) {
@@ -103,9 +106,11 @@ const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
         console.log(
           `Canvas data updated in AsyncStorage with name: ${itemName}`
         );
+        showToast("success", "Data saved successfully");
       } else {
         await AsyncStorage.setItem(itemName, JSON.stringify(canvasData));
         console.log(`Canvas data saved to AsyncStorage with name: ${itemName}`);
+        showToast("success", "Data saved successfully");
         clearCanvas();
       }
     } catch (error) {
@@ -118,6 +123,7 @@ const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
     }
   };
 
+  // Functions to add different shapes to the canvas
   const addCircle = (
     cx: number,
     cy: number,
@@ -160,6 +166,7 @@ const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
     setStars((prevStars) => [...prevStars, newStar]);
   };
 
+  // Function for canvas to add shapes
   const handlePress = (event: any, type: string): void => {
     switch (type) {
       case "circle":
@@ -241,6 +248,8 @@ const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
     setSelectedItemIndex(null);
     setSelectedItemType("");
   };
+
+  // Handling touch on canvas to interact with shapes
   const handleCanvasTouch = (event: any) => {
     if (event.nativeEvent) {
       const touchX = event.nativeEvent.locationX;
@@ -267,6 +276,7 @@ const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
     }
   };
 
+  // Function to find active rectangle
   const findActiveRectangle = (touchX: number, touchY: number) => {
     for (const rectangle of rectangles) {
       const { x, y, width, height } = rectangle;
@@ -283,7 +293,7 @@ const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
 
     return null;
   };
-
+  // Function to find active Star
   const findActiveStar = (touchX: number, touchY: number) => {
     for (const star of stars) {
       const { x, y, width, height } = star;
@@ -300,7 +310,7 @@ const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
 
     return null;
   };
-
+  // Function to find active Line
   const findActiveLine = (touchX: number, touchY: number) => {
     const touchThreshold = 5;
 
@@ -317,6 +327,7 @@ const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
     return null;
   };
 
+  // Function to find Distance of line
   const pointToLineDistance = (point: any, lineStart: any, lineEnd: any) => {
     const { x: x1, y: y1 } = lineStart;
     const { x: x2, y: y2 } = lineEnd;
@@ -353,6 +364,7 @@ const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
     return Math.sqrt(dx * dx + dy * dy);
   };
 
+  //Function to find active Circle
   const findActiveObject = (x: number, y: number) => {
     for (const circle of circles) {
       const distance = Math.sqrt(
@@ -372,6 +384,7 @@ const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
     handleSelect(index, type);
   };
 
+  // Function to enlarge the selected object
   const handleEnlarge = (): void => {
     if (selectedItemIndex !== null) {
       switch (selectedItemType) {
@@ -414,7 +427,7 @@ const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
       }
     }
   };
-
+  // Function to Shrink the selected object
   const handleShrink = (): void => {
     if (selectedItemIndex !== null) {
       switch (selectedItemType) {
@@ -456,7 +469,7 @@ const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
       }
     }
   };
-
+  // Function to Move the selected object
   const handleMove = (direction: string): void => {
     if (selectedItemIndex !== null) {
       switch (selectedItemType) {
@@ -563,7 +576,7 @@ const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
       }
     }
   };
-
+  // Function to Delete the selected object
   const handleDelete = (): void => {
     if (selectedItemIndex !== null) {
       switch (selectedItemType) {
@@ -597,17 +610,9 @@ const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
   };
 
   return (
-    <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+    <View style={styles.container}>
       <GestureDetector gesture={pan}>
-        <View
-          style={{
-            height: "80%",
-            width: "90%",
-            borderColor: "black",
-            borderWidth: 1,
-            marginBottom: 70,
-          }}
-        >
+        <View style={styles.canvas}>
           <SkCanvas
             style={{ flex: 1 }}
             ref={ref}
@@ -730,3 +735,16 @@ const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
 };
 
 export default Canvas;
+
+//Styles for Canvas Component
+
+const styles = StyleSheet.create({
+  container: { flex: 1, justifyContent: "center", alignItems: "center" },
+  canvas: {
+    height: "80%",
+    width: "90%",
+    borderColor: "black",
+    borderWidth: 1,
+    marginBottom: 70,
+  },
+});
