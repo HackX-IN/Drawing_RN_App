@@ -12,10 +12,16 @@ import {
   SkFont,
 } from "@shopify/react-native-skia";
 import { useState } from "react";
-import { Platform, ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import CustomButton from "@/components/CustomButton";
 import { svgImage } from "@/constants/index";
+import {
+  fontStyle,
+  numberOfRandomNumbers,
+  randomNumbers,
+  showToast,
+} from "@/utils";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   CircleProps,
@@ -25,18 +31,10 @@ import {
   StarProps,
   TextProps,
 } from "@/types/index";
-import Toast from "react-native-toast-message";
 
 const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
   console.log("🚀 ~ Canvas ~ data:", data);
 
-  const fontFamily = Platform.select({ ios: "Helvetica", default: "serif" });
-  const fontStyle: any = {
-    fontFamily,
-    fontSize: 14,
-    fontStyle: "italic",
-    fontWeight: "bold",
-  };
   const font = matchFont(fontStyle);
 
   const ref = useCanvasRef();
@@ -61,31 +59,6 @@ const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
     }
   }, [data]);
 
-  //Generate Random Numbers
-  const numberOfRandomNumbers = 5;
-  const minRange = 1;
-  const maxRange = 100;
-  const randomNumbers: any = [];
-
-  for (let i = 0; i < numberOfRandomNumbers; i++) {
-    const randomNumber =
-      Math.floor(Math.random() * (maxRange - minRange + 1)) + minRange;
-    randomNumbers.push(randomNumber);
-  }
-
-  //Showing Toast
-  const showToast = (type: string, text: string) => {
-    Toast.show({
-      type,
-      position: "top",
-      text1: text,
-      visibilityTime: 3000,
-      autoHide: true,
-      topOffset: 30,
-      bottomOffset: 40,
-    });
-  };
-
   // Saving data to AsyncStorage
   const saveData = async () => {
     const canvasData = {
@@ -105,16 +78,14 @@ const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
       if (data) {
         const existingData = await AsyncStorage.getItem(data.drawingData.name);
         if (existingData) {
-          const parsedExistingData = JSON.parse(existingData);
+          const ExistingData = JSON.parse(existingData);
           const updatedData = {
-            circles: parsedExistingData.circles.concat(circles),
-            rectangles: parsedExistingData.rectangles.concat(rectangles),
-            lines: parsedExistingData.lines.concat(lines),
-            stars: parsedExistingData.stars.concat(stars),
-            paths: parsedExistingData.paths.concat(paths),
-            texts: parsedExistingData.texts
-              ? parsedExistingData.texts.concat(texts)
-              : parsedExistingData.texts.push(texts),
+            circles: ExistingData.circles.concat(circles),
+            rectangles: ExistingData.rectangles.concat(rectangles),
+            lines: ExistingData.lines.concat(lines),
+            stars: ExistingData.stars.concat(stars),
+            paths: ExistingData.paths.concat(paths),
+            texts: ExistingData.texts.concat(texts),
           };
 
           await AsyncStorage.setItem(
