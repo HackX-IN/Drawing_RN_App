@@ -6,10 +6,10 @@ The Drawing Application is a web-based tool that allows users to create, edit, a
 
 ## Technologies Used
 
-- React: A JavaScript library for building user interfaces.
+- React-Native(Expo): A JavaScript library for building user interfaces.
 - SVG: Scalable Vector Graphics used for rendering shapes on the canvas.
 - TypeScript: A statically typed superset of JavaScript.
-- Other dependencies: [List any other major libraries or tools used.]
+- Other dependencies: @shopify/react-native-skia,expo-vector-icons,react-native-svg,react-navigation
 
 ## Features
 
