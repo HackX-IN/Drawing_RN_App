@@ -6,11 +6,13 @@ import {
   TouchableOpacity,
   Alert,
   View,
+  Image,
 } from "react-native";
 import React, { useEffect, useLayoutEffect, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useIsFocused } from "@react-navigation/core";
+import Toast from "react-native-toast-message";
 
 const HomeScreen = ({ navigation }: { navigation: any }) => {
   const [drawings, setDrawings] = useState([]); // using state to hold  drawings
@@ -70,6 +72,15 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
       setDrawings((prevDrawings) =>
         prevDrawings.filter((drawing) => drawing.name !== drawingName)
       );
+      Toast.show({
+        type: "success",
+        text1: "Drawing deleted successfully",
+        position: "bottom",
+        topOffset: 30,
+        bottomOffset: 40,
+        autoHide: true,
+        visibilityTime: 1000,
+      });
     } catch (error) {
       console.error("Error deleting drawing from AsyncStorage: ", error);
     }
@@ -96,21 +107,32 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
   return (
     // ScrollView to display the list of drawings
     <ScrollView contentContainerStyle={styles.container}>
-      {drawings.map((drawing) => (
-        <TouchableOpacity
-          key={drawing.name}
-          style={styles.drawingItem}
-          onPress={() => navigateToCanvas(drawing)}
-          onLongPress={() => handleLongPress(drawing.name)}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <Ionicons name="color-palette" size={24} color="black" />
-            <Text style={styles.drawingName}>{drawing.name}</Text>
-          </View>
-
-          <Ionicons name="chevron-forward-outline" size={24} color="black" />
-        </TouchableOpacity>
-      ))}
+      {drawings.length < 1 ? (
+        <View style={styles.emptyContainer}>
+          <Image
+            source={{
+              uri: "https://cdn-icons-png.flaticon.com/128/4401/4401807.png",
+            }}
+            style={styles.emptyImage}
+          />
+          <Text style={styles.text}>No drawings available</Text>
+        </View>
+      ) : (
+        drawings.map((drawing) => (
+          <TouchableOpacity
+            key={drawing.name}
+            style={styles.drawingItem}
+            onPress={() => navigateToCanvas(drawing)}
+            onLongPress={() => handleLongPress(drawing.name)}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Ionicons name="color-palette" size={24} color="black" />
+              <Text style={styles.drawingName}>{drawing.name}</Text>
+            </View>
+            <Ionicons name="chevron-forward-outline" size={24} color="black" />
+          </TouchableOpacity>
+        ))
+      )}
     </ScrollView>
   );
 };
@@ -136,5 +158,20 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     textAlign: "center",
     textTransform: "capitalize",
+  },
+  emptyContainer: {
+    justifyContent: "center",
+    alignItems: "center",
+    flex: 1,
+  },
+  emptyImage: {
+    width: 150,
+    height: 150,
+    marginBottom: 8,
+  },
+  text: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "black",
   },
 });
