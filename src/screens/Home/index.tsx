@@ -5,6 +5,7 @@ import {
   Text,
   TouchableOpacity,
   Alert,
+  View,
 } from "react-native";
 import React, { useEffect, useLayoutEffect, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
@@ -12,8 +13,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useIsFocused } from "@react-navigation/core";
 
 const HomeScreen = ({ navigation }: { navigation: any }) => {
-  const [drawings, setDrawings] = useState([]);
+  const [drawings, setDrawings] = useState([]); // using state to hold  drawings
   const isFocused = useIsFocused();
+
+  // Set options for the navigation header
   useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
@@ -33,6 +36,7 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
     });
   });
 
+  // Function to fetch all drawings from AsyncStorage
   const fetchAllDrawings = async () => {
     try {
       const allKeys = await AsyncStorage.getAllKeys();
@@ -49,6 +53,7 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
     }
   };
 
+  //useEffect to fetch drawings
   useEffect(() => {
     fetchAllDrawings();
   }, [isFocused]);
@@ -57,6 +62,7 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
     navigation.navigate("Canvas", { drawingData });
   };
 
+  // Function to delete a drawing
   const deleteDrawing = async (drawingName: string) => {
     try {
       await AsyncStorage.removeItem(drawingName);
@@ -69,6 +75,7 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
     }
   };
 
+  //Function to handle long press
   const handleLongPress = (drawingName: string) => {
     Alert.alert(
       "Delete Drawing",
@@ -87,6 +94,7 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
   };
 
   return (
+    // ScrollView to display the list of drawings
     <ScrollView contentContainerStyle={styles.container}>
       {drawings.map((drawing) => (
         <TouchableOpacity
@@ -95,7 +103,12 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
           onPress={() => navigateToCanvas(drawing)}
           onLongPress={() => handleLongPress(drawing.name)}
         >
-          <Text style={styles.drawingName}>{drawing.name}</Text>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <Ionicons name="color-palette" size={24} color="black" />
+            <Text style={styles.drawingName}>{drawing.name}</Text>
+          </View>
+
+          <Ionicons name="chevron-forward-outline" size={24} color="black" />
         </TouchableOpacity>
       ))}
     </ScrollView>
@@ -103,24 +116,25 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
 };
 
 export default HomeScreen;
-
+// Styles for the component
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    backgroundColor: "#f5f5f5",
-    borderTopWidth: 1,
-    borderTopColor: "black",
+    backgroundColor: "#ffff",
   },
   drawingItem: {
+    flexDirection: "row",
+    alignItems: "center",
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: "#ddd",
-    backgroundColor: "#fff",
-    marginTop: 8,
+    justifyContent: "space-between",
   },
   drawingName: {
+    marginLeft: 10,
     fontSize: 16,
-    fontWeight: "bold",
-    color: "#333",
+    fontWeight: "900",
+    textAlign: "center",
+    textTransform: "capitalize",
   },
 });

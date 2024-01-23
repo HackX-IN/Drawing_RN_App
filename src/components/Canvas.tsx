@@ -51,10 +51,16 @@ const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
   const maxRange = 100;
   const randomNumbers: any = [];
 
-  const showToast = (type: any, text: string) => {
+  for (let i = 0; i < numberOfRandomNumbers; i++) {
+    const randomNumber =
+      Math.floor(Math.random() * (maxRange - minRange + 1)) + minRange;
+    randomNumbers.push(randomNumber);
+  }
+
+  const showToast = (type: string, text: string) => {
     Toast.show({
       type,
-      position: "top",
+      position: "bottom",
       text1: text,
       visibilityTime: 3000,
       autoHide: true,
@@ -62,12 +68,6 @@ const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
       bottomOffset: 40,
     });
   };
-
-  for (let i = 0; i < numberOfRandomNumbers; i++) {
-    const randomNumber =
-      Math.floor(Math.random() * (maxRange - minRange + 1)) + minRange;
-    randomNumbers.push(randomNumber);
-  }
 
   const saveData = async () => {
     const canvasData = {
@@ -83,8 +83,8 @@ const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
       const randomItemNumber = randomNumbers[randomIndex];
 
       const itemName = `drawing${randomItemNumber}`;
-      const existingName = data.drawingData.name;
-      const existingData = await AsyncStorage.getItem(existingName);
+      // const existingName = data.drawingData.name;
+      const existingData = await AsyncStorage.getItem(data.drawingData.name);
 
       if (existingData) {
         const parsedExistingData = JSON.parse(existingData);
@@ -96,13 +96,17 @@ const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
           paths: parsedExistingData.paths.concat(paths),
         };
 
-        await AsyncStorage.setItem(existingName, JSON.stringify(updatedData));
+        await AsyncStorage.setItem(
+          data.drawingData.name,
+          JSON.stringify(updatedData)
+        );
         console.log(
-          `Canvas data updated in AsyncStorage with name: ${existingName}`
+          `Canvas data updated in AsyncStorage with name: ${itemName}`
         );
       } else {
         await AsyncStorage.setItem(itemName, JSON.stringify(canvasData));
         console.log(`Canvas data saved to AsyncStorage with name: ${itemName}`);
+        clearCanvas();
       }
     } catch (error) {
       console.error(
@@ -110,7 +114,6 @@ const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
         error
       );
     } finally {
-      clearCanvas();
       navigation.goBack();
     }
   };
@@ -619,7 +622,7 @@ const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
             {lines.map((line, index) => (
               <Line key={index} {...line} />
             ))}
-            {/* {paths.map((p, index) => (
+            {paths.map((p, index) => (
               <Path
                 key={index}
                 path={p.segments.join(" ")}
@@ -627,7 +630,7 @@ const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
                 style="stroke"
                 color={p.color}
               />
-            ))} */}
+            ))}
             {!!svgImage && stars && (
               <>
                 {stars.map((star, index) => (
