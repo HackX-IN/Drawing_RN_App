@@ -5,53 +5,22 @@ import {
   RoundedRect,
   Line,
   useCanvasRef,
-  Path,
-  Skia,
   ImageSVG,
+  Path,
 } from "@shopify/react-native-skia";
-import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
-import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { ScrollView, View } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import CustomButton from "@/components/CustomButton";
+import { svgImage } from "@/constants/index";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
-  Gesture,
-  GestureDetector,
-  GestureHandlerRootView,
-  TouchableWithoutFeedback,
-} from "react-native-gesture-handler";
-interface CircleProps {
-  cx: number;
-  cy: number;
-  r: number;
-  color: string;
-}
-
-interface RectangleProps {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  r: number; // r for border radius
-  color: string;
-}
-interface StarProps {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  svg: any;
-}
-
-interface LineProps {
-  p1: { x: number; y: number };
-  p2: { x: number; y: number };
-  color: string;
-  strokeWidth: number;
-}
-
-interface IPath {
-  segments: String[];
-  color?: string;
-}
+  CircleProps,
+  IPath,
+  LineProps,
+  RectangleProps,
+  StarProps,
+} from "@/types/index";
 
 const Canvas = () => {
   const ref = useCanvasRef();
@@ -63,6 +32,35 @@ const Canvas = () => {
   const [paths, setPaths] = useState<IPath[]>([]);
   const [selectedItemType, setSelectedItemType] = useState<string | null>(null);
 
+  const saveToFirebase = async () => {
+    const canvasData = {
+      circles,
+      rectangles,
+      lines,
+      stars,
+      paths,
+    };
+
+    const isCanvasNotEmpty =
+      circles.length > 0 ||
+      rectangles.length > 0 ||
+      lines.length > 0 ||
+      stars.length > 0 ||
+      paths.length > 0;
+
+    if (isCanvasNotEmpty) {
+      try {
+        await AsyncStorage.setItem("canvasData", JSON.stringify(canvasData));
+        console.log("Canvas data saved to AsyncStorage");
+        clearCanvas();
+      } catch (error) {
+        console.error("Error saving canvas data to AsyncStorage: ", error);
+      }
+    } else {
+      console.log("Canvas is empty. No data to save.");
+    }
+  };
+
   const addCircle = (
     cx: number,
     cy: number,
@@ -72,10 +70,6 @@ const Canvas = () => {
     const newCircle: CircleProps = { cx, cy, r, color };
     setCircles((prevCircles) => [...prevCircles, newCircle]);
   };
-
-  const svgStar =
-    '<svg class="star-svg" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/2000/xlink" viewBox="0 0 200 200"><polygon id="star" fill="#fcbf49" points="100,0,129.38926261462365,59.54915028125263,195.10565162951536,69.09830056250526,147.55282581475768,115.45084971874736,158.77852522924732,180.90169943749473,100,150,41.2214747707527,180.90169943749476,52.447174185242325,115.45084971874738,4.894348370484636,69.09830056250527,70.61073738537632,59.549150281252636"></polygon></svg>';
-  const svgImage = Skia.SVG.MakeFromString(svgStar);
 
   const addRectangle = (
     x: number,
@@ -113,16 +107,16 @@ const Canvas = () => {
     switch (type) {
       case "circle":
         addCircle(
-          event.nativeEvent.locationX,
-          event.nativeEvent.locationY,
+          event.nativeEvent.locationX + 20,
+          event.nativeEvent.locationY + 20,
           28,
           "blue"
         );
         break;
       case "rectangle":
         addRectangle(
-          event.nativeEvent.locationX,
-          event.nativeEvent.locationY,
+          event.nativeEvent.locationX + 20,
+          event.nativeEvent.locationY + 20,
           50,
           30,
           10,
@@ -132,7 +126,10 @@ const Canvas = () => {
       case "line":
         addLine(
           { x: 80, y: 80 },
-          { x: event.nativeEvent.locationX, y: event.nativeEvent.locationY },
+          {
+            x: event.nativeEvent.locationX + 20,
+            y: event.nativeEvent.locationY + 20,
+          },
           "lightblue",
           4
         );
@@ -141,8 +138,8 @@ const Canvas = () => {
         addStar(
           100,
           100,
-          event.nativeEvent.locationX,
-          event.nativeEvent.locationY,
+          event.nativeEvent.locationX + 20,
+          event.nativeEvent.locationY + 20,
           svgImage
         );
       default:
@@ -150,7 +147,6 @@ const Canvas = () => {
     }
   };
   const handleSelect = (index: any, type: any): void => {
-    // Set the selected item in the state
     setSelectedItemIndex(index);
     setSelectedItemType(type);
   };
@@ -163,14 +159,18 @@ const Canvas = () => {
         color: "#06d6a0",
       };
       newPaths[paths.length].segments.push(`M ${g.x} ${g.y}`);
-      setPaths(newPaths);
+      if (selectedItemIndex === null) {
+        setPaths(newPaths);
+      }
     })
     .onUpdate((g) => {
       const index = paths.length - 1;
       const newPaths = [...paths];
       if (newPaths?.[index]?.segments) {
         newPaths[index].segments.push(`L ${g.x} ${g.y}`);
-        setPaths(newPaths);
+        if (selectedItemIndex === null) {
+          setPaths(newPaths);
+        }
       }
     })
     .minDistance(1);
@@ -184,7 +184,6 @@ const Canvas = () => {
     setSelectedItemIndex(null);
     setSelectedItemType("");
   };
-
   const handleCanvasTouch = (event: any) => {
     if (event.nativeEvent) {
       const touchX = event.nativeEvent.locationX;
@@ -193,6 +192,7 @@ const Canvas = () => {
       const activeObject = findActiveObject(touchX, touchY);
       const activeRectangle = findActiveRectangle(touchX, touchY);
       const activeLine = findActiveLine(touchX, touchY);
+      const activeStar = findActiveStar(touchX, touchY);
 
       if (activeObject) {
         console.log(activeObject);
@@ -203,6 +203,9 @@ const Canvas = () => {
       } else if (activeLine) {
         console.log(activeLine);
         handleObjectTouch(activeLine);
+      } else if (activeStar) {
+        console.log(activeStar);
+        handleObjectTouch(activeStar);
       }
     }
   };
@@ -217,35 +220,46 @@ const Canvas = () => {
         touchY >= y &&
         touchY <= y + height
       ) {
-        // Return the active rectangle
         return { type: "rectangle", index: rectangles.indexOf(rectangle) };
       }
     }
 
-    // No active rectangle found
+    return null;
+  };
+
+  const findActiveStar = (touchX: number, touchY: number) => {
+    for (const star of stars) {
+      const { x, y, width, height } = star;
+
+      if (
+        touchX >= x &&
+        touchX <= x + width &&
+        touchY >= y &&
+        touchY <= y + height
+      ) {
+        return { type: "star", index: stars.indexOf(star) };
+      }
+    }
+
     return null;
   };
 
   const findActiveLine = (touchX: number, touchY: number) => {
-    const touchThreshold = 5; // Adjust this value for your specific requirements
+    const touchThreshold = 5;
 
     for (const line of lines) {
       const { p1, p2 } = line;
 
-      // Check if the touch coordinates are close to the line
       const distance = pointToLineDistance({ x: touchX, y: touchY }, p1, p2);
 
       if (distance <= touchThreshold) {
-        // Return the active line
         return { type: "line", index: lines.indexOf(line) };
       }
     }
 
-    // No active line found
     return null;
   };
 
-  // Function to calculate the distance from a point to a line
   const pointToLineDistance = (point: any, lineStart: any, lineEnd: any) => {
     const { x: x1, y: y1 } = lineStart;
     const { x: x2, y: y2 } = lineEnd;
@@ -296,7 +310,6 @@ const Canvas = () => {
   };
 
   const handleObjectTouch = (activeObject: { type: string; index: number }) => {
-    // Perform actions based on the type and index of the active object
     const { type, index } = activeObject;
 
     handleSelect(index, type);
@@ -308,19 +321,37 @@ const Canvas = () => {
         case "circle":
           setCircles((prevCircles) => {
             const updatedCircles = [...prevCircles];
-            updatedCircles[selectedItemIndex].r *= 1.2; // Increase the radius by 20%
+            updatedCircles[selectedItemIndex].r *= 1.2;
             return updatedCircles;
           });
           break;
         case "rectangle":
           setRectangles((prevRectangles) => {
             const updatedRectangles = [...prevRectangles];
-            updatedRectangles[selectedItemIndex].width *= 1.2; // Increase the width by 20%
-            updatedRectangles[selectedItemIndex].height *= 1.2; // Increase the height by 20%
+            updatedRectangles[selectedItemIndex].width *= 1.2;
+            updatedRectangles[selectedItemIndex].height *= 1.2;
             return updatedRectangles;
           });
           break;
-        // Add cases for other item types (line, star, etc.) if needed
+        case "line":
+          setLines((prevLines) => {
+            const updatedLines = [...prevLines];
+            updatedLines[selectedItemIndex].strokeWidth *= 1.2;
+            updatedLines[selectedItemIndex].p1.x *= 1.2;
+            updatedLines[selectedItemIndex].p1.y *= 1.2;
+            updatedLines[selectedItemIndex].p2.x *= 1.2;
+            updatedLines[selectedItemIndex].p2.y *= 1.2;
+            return updatedLines;
+          });
+          break;
+        case "star":
+          setStars((prevStars) => {
+            const updatedStars = [...prevStars];
+            updatedStars[selectedItemIndex].height *= 1.2;
+            updatedStars[selectedItemIndex].width *= 1.2;
+            return updatedStars;
+          });
+          break;
         default:
           break;
       }
@@ -333,19 +364,36 @@ const Canvas = () => {
         case "circle":
           setCircles((prevCircles) => {
             const updatedCircles = [...prevCircles];
-            updatedCircles[selectedItemIndex].r *= 0.8; // Decrease the radius by 20%
+            updatedCircles[selectedItemIndex].r *= 0.8;
             return updatedCircles;
           });
           break;
         case "rectangle":
           setRectangles((prevRectangles) => {
             const updatedRectangles = [...prevRectangles];
-            updatedRectangles[selectedItemIndex].width *= 0.8; // Decrease the width by 20%
-            updatedRectangles[selectedItemIndex].height *= 0.8; // Decrease the height by 20%
+            updatedRectangles[selectedItemIndex].width *= 0.8;
+            updatedRectangles[selectedItemIndex].height *= 0.8;
             return updatedRectangles;
           });
           break;
-        // Add cases for other item types (line, star, etc.) if needed
+        case "line":
+          setLines((prevLines) => {
+            const updatedLines = [...prevLines];
+            updatedLines[selectedItemIndex].p1.x *= 0.8;
+            updatedLines[selectedItemIndex].p1.y *= 0.8;
+            updatedLines[selectedItemIndex].p2.x *= 0.8;
+            updatedLines[selectedItemIndex].p2.y *= 0.8;
+            return updatedLines;
+          });
+          break;
+        case "star":
+          setStars((prevStars) => {
+            const updatedStars = [...prevStars];
+            updatedStars[selectedItemIndex].height *= 0.8;
+            updatedStars[selectedItemIndex].width *= 0.8;
+            return updatedStars;
+          });
+          break;
         default:
           break;
       }
@@ -358,19 +406,18 @@ const Canvas = () => {
         case "circle":
           setCircles((prevCircles) => {
             const updatedCircles = [...prevCircles];
-            // const { cx, cy } = updatedCircles[selectedItemIndex];
             switch (direction) {
               case "up":
-                updatedCircles[selectedItemIndex].cy -= 10; // Move up by 10 units
+                updatedCircles[selectedItemIndex].cy -= 10;
                 break;
               case "down":
-                updatedCircles[selectedItemIndex].cy += 10; // Move down by 10 units
+                updatedCircles[selectedItemIndex].cy += 10;
                 break;
               case "left":
-                updatedCircles[selectedItemIndex].cx -= 10; // Move left by 10 units
+                updatedCircles[selectedItemIndex].cx -= 10;
                 break;
               case "right":
-                updatedCircles[selectedItemIndex].cx += 10; // Move right by 10 units
+                updatedCircles[selectedItemIndex].cx += 10;
                 break;
               default:
                 break;
@@ -378,22 +425,22 @@ const Canvas = () => {
             return updatedCircles;
           });
           break;
+
         case "rectangle":
           setRectangles((prevRectangles) => {
             const updatedRectangles = [...prevRectangles];
-            // const { x, y } = updatedRectangles[selectedItemIndex];
             switch (direction) {
               case "up":
-                updatedRectangles[selectedItemIndex].y -= 10; // Move up by 10 units
+                updatedRectangles[selectedItemIndex].y -= 10;
                 break;
               case "down":
-                updatedRectangles[selectedItemIndex].y += 10; // Move down by 10 units
+                updatedRectangles[selectedItemIndex].y += 10;
                 break;
               case "left":
-                updatedRectangles[selectedItemIndex].x -= 10; // Move left by 10 units
+                updatedRectangles[selectedItemIndex].x -= 10;
                 break;
               case "right":
-                updatedRectangles[selectedItemIndex].x += 10; // Move right by 10 units
+                updatedRectangles[selectedItemIndex].x += 10;
                 break;
               default:
                 break;
@@ -401,10 +448,94 @@ const Canvas = () => {
             return updatedRectangles;
           });
           break;
-        // Add cases for other item types (line, star, etc.) if needed
+
+        case "line":
+          setLines((prevLines) => {
+            console.log("Before update - lines:", prevLines);
+            const updatedLines = [...prevLines];
+            switch (direction) {
+              case "up":
+                updatedLines[selectedItemIndex].p1.y -= 10;
+                updatedLines[selectedItemIndex].p2.y -= 10;
+                break;
+              case "down":
+                updatedLines[selectedItemIndex].p1.y += 10;
+                updatedLines[selectedItemIndex].p2.y += 10;
+                break;
+              case "left":
+                updatedLines[selectedItemIndex].p1.x -= 10;
+                updatedLines[selectedItemIndex].p2.x -= 10;
+                break;
+              case "right":
+                updatedLines[selectedItemIndex].p1.x += 10;
+                updatedLines[selectedItemIndex].p2.x += 10;
+                break;
+              default:
+                break;
+            }
+            console.log("After update - lines:", updatedLines);
+            return updatedLines;
+          });
+          break;
+
+        case "star":
+          setStars((prevStars) => {
+            const updatedStars = [...prevStars];
+            switch (direction) {
+              case "up":
+                updatedStars[selectedItemIndex].y -= 10;
+                break;
+              case "down":
+                updatedStars[selectedItemIndex].y += 10;
+                break;
+              case "left":
+                updatedStars[selectedItemIndex].x -= 10;
+                break;
+              case "right":
+                updatedStars[selectedItemIndex].x += 10;
+                break;
+              default:
+                break;
+            }
+            return updatedStars;
+          });
+          break;
+
         default:
           break;
       }
+    }
+  };
+
+  const handleDelete = (): void => {
+    if (selectedItemIndex !== null) {
+      switch (selectedItemType) {
+        case "circle":
+          setCircles((prevCircles) =>
+            prevCircles.filter((_, index) => index !== selectedItemIndex)
+          );
+          break;
+        case "rectangle":
+          setRectangles((prevRectangles) =>
+            prevRectangles.filter((_, index) => index !== selectedItemIndex)
+          );
+          break;
+        case "line":
+          setLines((prevLines) =>
+            prevLines.filter((_, index) => index !== selectedItemIndex)
+          );
+          break;
+        case "star":
+          setStars((prevStars) =>
+            prevStars.filter((_, index) => index !== selectedItemIndex)
+          );
+          break;
+        default:
+          break;
+      }
+
+      setSelectedItemIndex(null);
+      setSelectedItemType(null);
     }
   };
 
@@ -434,7 +565,7 @@ const Canvas = () => {
             {lines.map((line, index) => (
               <Line key={index} {...line} />
             ))}
-            {paths.map((p, index) => (
+            {/* {paths.map((p, index) => (
               <Path
                 key={index}
                 path={p.segments.join(" ")}
@@ -442,7 +573,7 @@ const Canvas = () => {
                 style="stroke"
                 color={p.color}
               />
-            ))}
+            ))} */}
             {!!svgImage && stars && (
               <>
                 {stars.map((star, index) => (
@@ -454,175 +585,88 @@ const Canvas = () => {
         </View>
       </GestureDetector>
       <ScrollView horizontal style={{ position: "absolute", bottom: 8 }}>
-        <TouchableOpacity
-          style={{
-            backgroundColor: "purple",
-            padding: 7,
-            borderRadius: 5,
-            margin: 5,
-            alignItems: "center",
-          }}
+        <CustomButton
           onPress={(event) => handlePress(event, "circle")}
-        >
-          <Ionicons name="add-circle" size={30} color="white" />
-          <Text style={{ fontSize: 16, fontWeight: "700", color: "white" }}>
-            Add Circle
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={{
-            backgroundColor: "green",
-            padding: 7,
-            borderRadius: 5,
-            margin: 5,
-            alignItems: "center",
-          }}
+          backgroundColor="purple"
+          label="Add Circle"
+          iconName="add-circle"
+        />
+        <CustomButton
           onPress={(event) => handlePress(event, "rectangle")}
-        >
-          <Ionicons name="shapes" size={30} color="white" />
-          <Text style={{ fontSize: 16, fontWeight: "700", color: "white" }}>
-            Add Rectangle
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={{
-            backgroundColor: "red",
-            padding: 7,
-            borderRadius: 5,
-            margin: 5,
-            alignItems: "center",
-          }}
+          backgroundColor="green"
+          label="Add Rectangle"
+          iconName="shapes"
+        />
+        <CustomButton
           onPress={(event) => handlePress(event, "line")}
-        >
-          <Ionicons name="link-outline" size={30} color="white" />
-          <Text style={{ fontSize: 16, fontWeight: "700", color: "white" }}>
-            Add Line
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={{
-            backgroundColor: "gold",
-            padding: 7,
-            borderRadius: 5,
-            margin: 5,
-            alignItems: "center",
-          }}
+          backgroundColor="red"
+          label="Add Line"
+          iconName="link-outline"
+        />
+        <CustomButton
           onPress={(event) => handlePress(event, "star")}
-        >
-          <Ionicons name="star" size={30} color="white" />
-          <Text style={{ fontSize: 16, fontWeight: "700", color: "white" }}>
-            Add Star
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={{
-            backgroundColor: "gray",
-            padding: 7,
-            borderRadius: 5,
-            margin: 5,
-            alignItems: "center",
-          }}
-          onPress={clearCanvas}
-        >
-          <Ionicons name="trash-bin" size={30} color="white" />
-          <Text style={{ fontSize: 16, fontWeight: "700", color: "white" }}>
-            Clear All
-          </Text>
-        </TouchableOpacity>
+          backgroundColor="gold"
+          label="Add Star"
+          iconName="star"
+        />
         {selectedItemIndex !== null && (
           <>
-            <TouchableOpacity
-              style={{
-                backgroundColor: "orange",
-                padding: 7,
-                borderRadius: 5,
-                margin: 5,
-                alignItems: "center",
-              }}
+            <CustomButton
               onPress={handleEnlarge}
-            >
-              <Ionicons name="add-outline" size={30} color="white" />
-              <Text style={{ fontSize: 16, fontWeight: "700", color: "white" }}>
-                Enlarge
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={{
-                backgroundColor: "purple",
-                padding: 7,
-                borderRadius: 5,
-                margin: 5,
-                alignItems: "center",
-              }}
+              backgroundColor="orange"
+              label="Enlarge"
+              iconName="add-outline"
+            />
+            <CustomButton
               onPress={handleShrink}
-            >
-              <Ionicons name="remove-outline" size={30} color="white" />
-              <Text style={{ fontSize: 16, fontWeight: "700", color: "white" }}>
-                Shrink
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={{
-                backgroundColor: "blue",
-                padding: 7,
-                borderRadius: 5,
-                margin: 5,
-                alignItems: "center",
-              }}
+              backgroundColor="purple"
+              label="Shrink"
+              iconName="remove-outline"
+            />
+            <CustomButton
               onPress={() => handleMove("up")}
-            >
-              <Ionicons name="arrow-up" size={30} color="white" />
-              <Text style={{ fontSize: 16, fontWeight: "700", color: "white" }}>
-                Up
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={{
-                backgroundColor: "gold",
-                padding: 7,
-                borderRadius: 5,
-                margin: 5,
-                alignItems: "center",
-              }}
+              backgroundColor="blue"
+              label="Up"
+              iconName="arrow-up"
+            />
+            <CustomButton
               onPress={() => handleMove("down")}
-            >
-              <Ionicons name="arrow-down" size={30} color="white" />
-              <Text style={{ fontSize: 16, fontWeight: "700", color: "white" }}>
-                Down
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={{
-                backgroundColor: "green",
-                padding: 7,
-                borderRadius: 5,
-                margin: 5,
-                alignItems: "center",
-              }}
+              backgroundColor="gold"
+              label="Down"
+              iconName="arrow-down"
+            />
+            <CustomButton
               onPress={() => handleMove("left")}
-            >
-              <Ionicons name="arrow-back" size={30} color="white" />
-              <Text style={{ fontSize: 16, fontWeight: "700", color: "white" }}>
-                Left
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={{
-                backgroundColor: "red",
-                padding: 7,
-                borderRadius: 5,
-                margin: 5,
-                alignItems: "center",
-              }}
+              backgroundColor="green"
+              label="Left"
+              iconName="arrow-back"
+            />
+            <CustomButton
               onPress={() => handleMove("right")}
-            >
-              <Ionicons name="arrow-forward" size={30} color="white" />
-              <Text style={{ fontSize: 16, fontWeight: "700", color: "white" }}>
-                Right
-              </Text>
-            </TouchableOpacity>
+              backgroundColor="red"
+              label="Right"
+              iconName="arrow-forward"
+            />
+            <CustomButton
+              onPress={handleDelete}
+              backgroundColor="red"
+              label="Delete"
+              iconName="trash-bin"
+            />
           </>
         )}
+        <CustomButton
+          onPress={saveToFirebase}
+          backgroundColor="purple"
+          label="Save to cloud"
+          iconName="cloud-upload-outline"
+        />
+        <CustomButton
+          onPress={clearCanvas}
+          backgroundColor="gray"
+          label="Clear All"
+          iconName="trash-bin"
+        />
       </ScrollView>
     </View>
   );
