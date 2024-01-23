@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
   Canvas as SkCanvas,
   Circle,
@@ -21,8 +21,11 @@ import {
   RectangleProps,
   StarProps,
 } from "@/types/index";
+import Toast from "react-native-toast-message";
 
-const Canvas = () => {
+const Canvas = ({ data, navigation }: { data: any; navigation: any }) => {
+  // console.log("🚀 ~ Canvas ~ data:", data);
+
   const ref = useCanvasRef();
   const [circles, setCircles] = useState<CircleProps[]>([]);
   const [rectangles, setRectangles] = useState<RectangleProps[]>([]);
@@ -32,7 +35,41 @@ const Canvas = () => {
   const [paths, setPaths] = useState<IPath[]>([]);
   const [selectedItemType, setSelectedItemType] = useState<string | null>(null);
 
-  const saveToFirebase = async () => {
+  useEffect(() => {
+    if (data && data.drawingData) {
+      const drawingData = data.drawingData.data;
+      setCircles(drawingData.circles || []);
+      setRectangles(drawingData.rectangles || []);
+      setLines(drawingData.lines || []);
+      setStars(drawingData.stars || []);
+      setPaths(drawingData.paths || []);
+    }
+  }, [data]);
+
+  const numberOfRandomNumbers = 5;
+  const minRange = 1;
+  const maxRange = 100;
+  const randomNumbers: any = [];
+
+  const showToast = (type: any, text: string) => {
+    Toast.show({
+      type,
+      position: "top",
+      text1: text,
+      visibilityTime: 3000,
+      autoHide: true,
+      topOffset: 30,
+      bottomOffset: 40,
+    });
+  };
+
+  for (let i = 0; i < numberOfRandomNumbers; i++) {
+    const randomNumber =
+      Math.floor(Math.random() * (maxRange - minRange + 1)) + minRange;
+    randomNumbers.push(randomNumber);
+  }
+
+  const saveData = async () => {
     const canvasData = {
       circles,
       rectangles,
@@ -41,23 +78,40 @@ const Canvas = () => {
       paths,
     };
 
-    const isCanvasNotEmpty =
-      circles.length > 0 ||
-      rectangles.length > 0 ||
-      lines.length > 0 ||
-      stars.length > 0 ||
-      paths.length > 0;
+    try {
+      const randomIndex = Math.floor(Math.random() * numberOfRandomNumbers);
+      const randomItemNumber = randomNumbers[randomIndex];
 
-    if (isCanvasNotEmpty) {
-      try {
-        await AsyncStorage.setItem("canvasData", JSON.stringify(canvasData));
-        console.log("Canvas data saved to AsyncStorage");
-        clearCanvas();
-      } catch (error) {
-        console.error("Error saving canvas data to AsyncStorage: ", error);
+      const itemName = `drawing${randomItemNumber}`;
+      const existingName = data.drawingData.name;
+      const existingData = await AsyncStorage.getItem(existingName);
+
+      if (existingData) {
+        const parsedExistingData = JSON.parse(existingData);
+        const updatedData = {
+          circles: parsedExistingData.circles.concat(circles),
+          rectangles: parsedExistingData.rectangles.concat(rectangles),
+          lines: parsedExistingData.lines.concat(lines),
+          stars: parsedExistingData.stars.concat(stars),
+          paths: parsedExistingData.paths.concat(paths),
+        };
+
+        await AsyncStorage.setItem(existingName, JSON.stringify(updatedData));
+        console.log(
+          `Canvas data updated in AsyncStorage with name: ${existingName}`
+        );
+      } else {
+        await AsyncStorage.setItem(itemName, JSON.stringify(canvasData));
+        console.log(`Canvas data saved to AsyncStorage with name: ${itemName}`);
       }
-    } else {
-      console.log("Canvas is empty. No data to save.");
+    } catch (error) {
+      console.error(
+        "Error saving/updating canvas data to AsyncStorage: ",
+        error
+      );
+    } finally {
+      clearCanvas();
+      navigation.goBack();
     }
   };
 
@@ -548,7 +602,7 @@ const Canvas = () => {
             width: "90%",
             borderColor: "black",
             borderWidth: 1,
-            marginBottom: 25,
+            marginBottom: 70,
           }}
         >
           <SkCanvas
@@ -656,9 +710,9 @@ const Canvas = () => {
           </>
         )}
         <CustomButton
-          onPress={saveToFirebase}
+          onPress={saveData}
           backgroundColor="purple"
-          label="Save to cloud"
+          label="Save "
           iconName="cloud-upload-outline"
         />
         <CustomButton
